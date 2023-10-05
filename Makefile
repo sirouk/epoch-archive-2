@@ -153,10 +153,10 @@ backup-version: backup-epoch backup-snapshot backup-transaction
 
 
 restore-all:
-	cd ${ARCHIVE_PATH} && git pull && rm -R ${DB_PATH} && ${BIN_PATH}/diem-db-tool restore bootstrap-db --target-db-dir ${DB_PATH} --metadata-cache-dir ${ARCHIVE_PATH}/metacache --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
+	cd ${ARCHIVE_PATH} && git pull && rm -Rf ${DB_PATH} && ${BIN_PATH}/diem-db-tool restore bootstrap-db --target-db-dir ${DB_PATH} --metadata-cache-dir ${ARCHIVE_PATH}/metacache --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
 
 restore-latest:
-	cd ${ARCHIVE_PATH} && git pull && rm -R ${DB_PATH} && ${BIN_PATH}/diem-db-tool restore bootstrap-db --ledger-history-start-version ${VERSION_START} --target-version ${VERSION} --target-db-dir ${DB_PATH} --metadata-cache-dir ${ARCHIVE_PATH}/metacache --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
+	cd ${ARCHIVE_PATH} && git pull && rm -Rf ${DB_PATH} && ${BIN_PATH}/diem-db-tool restore bootstrap-db --ledger-history-start-version ${VERSION_START} --target-version ${VERSION} --target-db-dir ${DB_PATH} --metadata-cache-dir ${ARCHIVE_PATH}/metacache --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
 
 restore-not-yet:
 	echo "Not now, but soon. You can play, but be careful!"
