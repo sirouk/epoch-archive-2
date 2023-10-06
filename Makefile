@@ -147,7 +147,7 @@ wipe-db:
 	sudo rm -rf ${DB_PATH}
 
 prep-archive-path:
-	mkdir -p ${ARCHIVE_PATH} && cd ${REPO_PATH}
+	mkdir -p ${ARCHIVE_PATH} && cd ${ARCHIVE_PATH}
 
 bins:
 	cd ${SOURCE_PATH} && cargo build -p diem-db-tool --release
