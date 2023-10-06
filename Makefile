@@ -141,7 +141,7 @@ check:
 	echo restore-epoch-height: ${RESTORE_EPOCH_HEIGHT}
 
 wipe-backups:
-	cd ${ARCHIVE_PATH} && rm -Rf epoch_ending_* state_epoch_* transaction_* metadata metacache backup.log && git add -A && git commit -m "wipe-backups" && git push
+	cd ${REPO_PATH} && rm -Rf ${ARCHIVE_PATH} && rm -Rf metacache backup.log && git add -A && git commit -m "wipe-backups" && git push
 
 wipe-db:
 	sudo rm -rf ${DB_PATH}
