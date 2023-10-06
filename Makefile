@@ -158,7 +158,7 @@ bins:
 	cp -f ${SOURCE_PATH}/target/release/diem-db-tool ${BIN_PATH}/diem-db-tool
 
 sync-repo:
-	cd ${REPO_PATH} && git pull && git reset --hard origin/main && git clean -xdf && cd ${ARCHIVE_PATH}
+	cd ${REPO_PATH} && git pull && git reset --hard origin/main && git clean -xdf
 
 
 backup-genesis:
@@ -183,10 +183,10 @@ restore-genesis:
 	mkdir -p ${GENESIS_PATH} && cp -f ${REPO_PATH}/genesis/genesis.blob ${GENESIS_PATH}/genesis.blob && cp -f ${REPO_PATH}/genesis/waypoint.txt ${GENESIS_PATH}/waypoint.txt && libra config init
 
 restore-all: sync-repo wipe-db restore-genesis
-	${BIN_PATH}/diem-db-tool restore bootstrap-db --target-db-dir ${DB_PATH} --metadata-cache-dir ${REPO_PATH}/metacache --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
+	cd ${ARCHIVE_PATH} && ${BIN_PATH}/diem-db-tool restore bootstrap-db --target-db-dir ${DB_PATH} --metadata-cache-dir ${REPO_PATH}/metacache --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
 
 restore-latest: sync-repo wipe-db
-	${BIN_PATH}/diem-db-tool restore bootstrap-db --ledger-history-start-version ${VERSION_START} --target-version ${VERSION} --target-db-dir ${DB_PATH} --metadata-cache-dir ${REPO_PATH}/metacache --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
+	cd ${ARCHIVE_PATH} && ${BIN_PATH}/diem-db-tool restore bootstrap-db --ledger-history-start-version ${VERSION_START} --target-version ${VERSION} --target-db-dir ${DB_PATH} --metadata-cache-dir ${REPO_PATH}/metacache --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
 
 restore-not-yet:
 	echo "Not now, but soon. You can play, but be careful!"
