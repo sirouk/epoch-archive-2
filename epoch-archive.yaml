@@ -1,6 +1,6 @@
 env_vars:
   - key: "FOLDER"
-    value: "./"
+    value: "./snapshots"
 
 commands:
   create_backup: 'echo $BACKUP_NAME'
