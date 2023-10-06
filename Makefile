@@ -3,6 +3,14 @@
 
 SHELL=/usr/bin/env bash
 
+ifndef GIT_ORG
+GIT_ORG = sirouk
+endif
+
+ifndef GIT_REPO
+GIT_ORG_REPO = epoch-archive-2
+endif
+
 ifndef BIN_PATH
 BIN_PATH=~/bin
 endif
@@ -12,7 +20,7 @@ SOURCE_PATH=~/libra-framework
 endif
 
 ifndef ARCHIVE_PATH
-ARCHIVE_PATH=~/epoch-archive-2
+ARCHIVE_PATH=~/${GIT_REPO}
 endif
 
 ifndef DATA_PATH
@@ -53,13 +61,11 @@ ifndef DB_VERSION
 DB_VERSION := $(shell curl 127.0.0.1:9101/metrics 2> /dev/null | grep "^diem_storage_latest_state_checkpoint_version [0-9]\+" | awk '{print $$2}' | bc)
 endif
 
-
-GIT_ORG_REPO = sirouk/epoch-archive-2
-GIT_API_BASE = https://api.github.com/repos/$(GIT_ORG_REPO)
+GIT_API_BASE = https://api.github.com/repos/${GIT_ORG}/${GIT_REPO}
 BACKUP_INFO ?= $(shell latest_version=0; first_version=0; \
-	contents=$$(curl -s "$(GIT_API_BASE)/git/trees/main?recursive=1" | jq -r '.tree[] | select(.path | test("transaction_[0-9]+-.*/transaction.manifest$$")) | .path'); \
+	contents=$$(curl -s "${GIT_API_BASE}/git/trees/main?recursive=1" | jq -r '.tree[] | select(.path | test("transaction_[0-9]+-.*/transaction.manifest$$")) | .path'); \
 	for path in $$contents; do \
-		versions=$$(curl -s "$(GIT_API_BASE)/contents/$$path" | jq -r '.content' | base64 --decode | gunzip | jq -r '.first_version, .last_version'); \
+		versions=$$(curl -s "${GIT_API_BASE}/contents/$$path" | jq -r '.content' | base64 --decode | gunzip | jq -r '.first_version, .last_version'); \
 		fv=$$(echo "$$versions" | head -n 1); \
 		cv=$$(echo "$$versions" | tail -n 1); \
 		if [ $$cv -gt $$latest_version ]; then \
@@ -69,8 +75,8 @@ BACKUP_INFO ?= $(shell latest_version=0; first_version=0; \
 	done; \
 	echo $$first_version:$$latest_version)
 
-LATEST_BACKUP_FV = $(word 1,$(subst :, ,$(BACKUP_INFO)))
-LATEST_BACKUP = $(word 2,$(subst :, ,$(BACKUP_INFO)))
+LATEST_BACKUP_FV = $(word 1,$(subst :, ,${BACKUP_INFO}))
+LATEST_BACKUP = $(word 2,$(subst :, ,${BACKUP_INFO}))
 
 ifndef NEXT_BACKUP
 NEXT_BACKUP = $(shell echo "${LATEST_BACKUP} + ${BACKUP_TRANS_FREQ}" | bc)
@@ -129,34 +135,40 @@ check:
 	echo restore-epoch-waypoint: ${RESTORE_EPOCH_WAYPOINT}
 	echo restore-epoch-height: ${RESTORE_EPOCH_HEIGHT}
 
-wipe:
+wipe-backups:
+	cd ${ARCHIVE_PATH} && rm -Rf epoch_ending_* state_epoch_* transaction_* metadata metacache
+
+wipe-db:
 	sudo rm -rf ${DB_PATH}
+
+prep-archive-path:
+	mkdir -p ${ARCHIVE_PATH}
 
 bins:
 	cd ${SOURCE_PATH} && cargo build -p diem-db-tool --release
 	cp -f ${SOURCE_PATH}/target/release/diem-db-tool ${BIN_PATH}/diem-db-tool
 
 
-continuous-backup:
+continuous-backup: prep-archive-path
 	cd ${ARCHIVE_PATH} && ${BIN_PATH}/diem-db-tool backup continuously --backup-service-address ${BACKUP_SERVICE_URL}:6186 --state-snapshot-interval-epochs ${BACKUP_EPOCH_FREQ} --transaction-batch-size ${BACKUP_TRANS_FREQ} --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
 
-backup-epoch: 
+backup-epoch: prep-archive-path
 	cd ${ARCHIVE_PATH} && ${BIN_PATH}/diem-db-tool backup oneoff --backup-service-address ${BACKUP_SERVICE_URL}:6186 epoch-ending --start-epoch ${LAST_EPOCH} --end-epoch ${EPOCH_NOW} --target-db-dir ${DB_PATH} --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
 
-backup-snapshot: create-folder
+backup-snapshot: prep-archive-path
 	cd ${ARCHIVE_PATH} && ${BIN_PATH}/diem-db-tool backup oneoff --backup-service-address ${BACKUP_SERVICE_URL}:6186 state-snapshot --target-db-dir ${DB_PATH} --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
 
-backup-transaction:
+backup-transaction: prep-archive-path
 	cd ${ARCHIVE_PATH} && ${BIN_PATH}/diem-db-tool backup oneoff --backup-service-address ${BACKUP_SERVICE_URL}:6186 transaction --start-version ${VERSION} --num_transactions ${BACKUP_TRANS_FREQ} --target-db-dir ${DB_PATH}--command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
 
 backup-version: backup-epoch backup-snapshot backup-transaction
 
 
-restore-all:
-	cd ${ARCHIVE_PATH} && git pull && rm -Rf ${DB_PATH} && ${BIN_PATH}/diem-db-tool restore bootstrap-db --target-db-dir ${DB_PATH} --metadata-cache-dir ${ARCHIVE_PATH}/metacache --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
+restore-all: wipe-db
+	cd ${ARCHIVE_PATH} && git pull && ${BIN_PATH}/diem-db-tool restore bootstrap-db --target-db-dir ${DB_PATH} --metadata-cache-dir ${ARCHIVE_PATH}/metacache --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
 
-restore-latest:
-	cd ${ARCHIVE_PATH} && git pull && rm -Rf ${DB_PATH} && ${BIN_PATH}/diem-db-tool restore bootstrap-db --ledger-history-start-version ${VERSION_START} --target-version ${VERSION} --target-db-dir ${DB_PATH} --metadata-cache-dir ${ARCHIVE_PATH}/metacache --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
+restore-latest: wipe-db
+	cd ${ARCHIVE_PATH} && git pull && ${BIN_PATH}/diem-db-tool restore bootstrap-db --ledger-history-start-version ${VERSION_START} --target-version ${VERSION} --target-db-dir ${DB_PATH} --metadata-cache-dir ${ARCHIVE_PATH}/metacache --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
 
 restore-not-yet:
 	echo "Not now, but soon. You can play, but be careful!"
