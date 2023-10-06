@@ -1,6 +1,6 @@
-env_vars:
+nv_vars:
   - key: "FOLDER"
-    value: "./snapshots"
+    value: "./"
 
 commands:
   create_backup: 'echo $BACKUP_NAME'
@@ -17,5 +17,5 @@ commands:
     echo "$FILE_HANDLE"
     exec 1>&-
     gzip -c > "$FOLDER/$FILE_HANDLE"
-  list_metadata_files: '(test -d $FOLDER/metadata && cd $FOLDER/metadata && ls -1 || exec) | while read f; do echo $FOLDER/metadata/$f; done'
+  list_metadata_files: '(test -d $FOLDER/metadata && cd $FOLDER/metadata && ls -1 || exec) | while read f; do echo metadata/$f; done'
   backup_metadata_file: 'mkdir -p $FOLDER/metadata_backup && mv $FOLDER/metadata/$FILE_NAME $FOLDER/metadata_backup/$FILE_NAME'
