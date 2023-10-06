@@ -162,7 +162,7 @@ sync-repo:
 
 
 backup-genesis:
-	mkdir -p ${REPO_PATH}/genesis && cp -f ${GENESIS_PATH}/genesis.blob ${REPO_PATH}/genesis/genesis.blob && cp -f ${GENESIS_PATH}/waypoint.json ${REPO_PATH}/genesis/waypoint.txt
+	mkdir -p ${REPO_PATH}/genesis && cp -f ${GENESIS_PATH}/genesis.blob ${REPO_PATH}/genesis/genesis.blob && cp -f ${GENESIS_PATH}/waypoint.txt ${REPO_PATH}/genesis/waypoint.txt
 
 backup-continuous: prep-archive-path backup-genesis
 	${BIN_PATH}/diem-db-tool backup continuously --backup-service-address ${BACKUP_SERVICE_URL}:6186 --state-snapshot-interval-epochs ${BACKUP_EPOCH_FREQ} --transaction-batch-size ${BACKUP_TRANS_FREQ} --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
@@ -180,7 +180,7 @@ backup-version: backup-epoch backup-snapshot backup-transaction
 
 
 restore-genesis:
-	mkdir -p ${GENESIS_PATH} && cp -f ${REPO_PATH}/genesis/genesis.blob ${GENESIS_PATH}/genesis.blob && cp -f ${REPO_PATH}/genesis/waypoint.txt ${GENESIS_PATH}/waypoint.json
+	mkdir -p ${GENESIS_PATH} && cp -f ${REPO_PATH}/genesis/genesis.blob ${GENESIS_PATH}/genesis.blob && cp -f ${REPO_PATH}/genesis/waypoint.txt ${GENESIS_PATH}/waypoint.txt
 
 restore-all: sync-repo wipe-db restore-genesis
 	${BIN_PATH}/diem-db-tool restore bootstrap-db --target-db-dir ${DB_PATH} --metadata-cache-dir ${REPO_PATH}/metacache --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
