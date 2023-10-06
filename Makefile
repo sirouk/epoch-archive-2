@@ -8,7 +8,7 @@ GIT_ORG = sirouk
 endif
 
 ifndef GIT_REPO
-GIT_ORG_REPO = epoch-archive-2
+GIT_REPO = epoch-archive-2
 endif
 
 ifndef BIN_PATH
@@ -19,8 +19,12 @@ ifndef SOURCE_PATH
 SOURCE_PATH=~/libra-framework
 endif
 
+ifndef REPO_PATH
+REPO_PATH=~/${GIT_REPO}
+endif
+
 ifndef ARCHIVE_PATH
-ARCHIVE_PATH=~/${GIT_REPO}
+ARCHIVE_PATH=${REPO_PATH}/snapshots
 endif
 
 ifndef DATA_PATH
@@ -112,6 +116,7 @@ check:
 	fi
 
 	echo bin-path: ${BIN_PATH}
+	echo repo-path: ${REPO_PATH}
 	echo source-path: ${SOURCE_PATH}
 	echo archive-path: ${ARCHIVE_PATH}
 	echo data-path: ${DATA_PATH}
@@ -142,33 +147,36 @@ wipe-db:
 	sudo rm -rf ${DB_PATH}
 
 prep-archive-path:
-	mkdir -p ${ARCHIVE_PATH}
+	mkdir -p ${ARCHIVE_PATH} && cd ${REPO_PATH}
 
 bins:
 	cd ${SOURCE_PATH} && cargo build -p diem-db-tool --release
 	cp -f ${SOURCE_PATH}/target/release/diem-db-tool ${BIN_PATH}/diem-db-tool
 
+sync-repo:
+	cd ${REPO_PATH} && git pull
 
-continuous-backup: prep-archive-path
-	cd ${ARCHIVE_PATH} && ${BIN_PATH}/diem-db-tool backup continuously --backup-service-address ${BACKUP_SERVICE_URL}:6186 --state-snapshot-interval-epochs ${BACKUP_EPOCH_FREQ} --transaction-batch-size ${BACKUP_TRANS_FREQ} --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
+
+backup-continuous: prep-archive-path
+	${BIN_PATH}/diem-db-tool backup continuously --backup-service-address ${BACKUP_SERVICE_URL}:6186 --state-snapshot-interval-epochs ${BACKUP_EPOCH_FREQ} --transaction-batch-size ${BACKUP_TRANS_FREQ} --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
 
 backup-epoch: prep-archive-path
-	cd ${ARCHIVE_PATH} && ${BIN_PATH}/diem-db-tool backup oneoff --backup-service-address ${BACKUP_SERVICE_URL}:6186 epoch-ending --start-epoch ${LAST_EPOCH} --end-epoch ${EPOCH_NOW} --target-db-dir ${DB_PATH} --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
+	${BIN_PATH}/diem-db-tool backup oneoff --backup-service-address ${BACKUP_SERVICE_URL}:6186 epoch-ending --start-epoch ${LAST_EPOCH} --end-epoch ${EPOCH_NOW} --target-db-dir ${DB_PATH} --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
 
 backup-snapshot: prep-archive-path
-	cd ${ARCHIVE_PATH} && ${BIN_PATH}/diem-db-tool backup oneoff --backup-service-address ${BACKUP_SERVICE_URL}:6186 state-snapshot --target-db-dir ${DB_PATH} --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
+	${BIN_PATH}/diem-db-tool backup oneoff --backup-service-address ${BACKUP_SERVICE_URL}:6186 state-snapshot --target-db-dir ${DB_PATH} --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
 
 backup-transaction: prep-archive-path
-	cd ${ARCHIVE_PATH} && ${BIN_PATH}/diem-db-tool backup oneoff --backup-service-address ${BACKUP_SERVICE_URL}:6186 transaction --start-version ${VERSION} --num_transactions ${BACKUP_TRANS_FREQ} --target-db-dir ${DB_PATH}--command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
+	${BIN_PATH}/diem-db-tool backup oneoff --backup-service-address ${BACKUP_SERVICE_URL}:6186 transaction --start-version ${VERSION} --num_transactions ${BACKUP_TRANS_FREQ} --target-db-dir ${DB_PATH}--command-adapter-config ${REPO_PATH}/epoch-archive.yaml
 
 backup-version: backup-epoch backup-snapshot backup-transaction
 
 
-restore-all: wipe-db
-	cd ${ARCHIVE_PATH} && git pull && ${BIN_PATH}/diem-db-tool restore bootstrap-db --target-db-dir ${DB_PATH} --metadata-cache-dir ${ARCHIVE_PATH}/metacache --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
+restore-all: sync-repo wipe-db
+	${BIN_PATH}/diem-db-tool restore bootstrap-db --target-db-dir ${DB_PATH} --metadata-cache-dir ${REPO_PATH}/metacache --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
 
-restore-latest: wipe-db
-	cd ${ARCHIVE_PATH} && git pull && ${BIN_PATH}/diem-db-tool restore bootstrap-db --ledger-history-start-version ${VERSION_START} --target-version ${VERSION} --target-db-dir ${DB_PATH} --metadata-cache-dir ${ARCHIVE_PATH}/metacache --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml
+restore-latest: sync-repo wipe-db
+	${BIN_PATH}/diem-db-tool restore bootstrap-db --ledger-history-start-version ${VERSION_START} --target-version ${VERSION} --target-db-dir ${DB_PATH} --metadata-cache-dir ${REPO_PATH}/metacache --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
 
 restore-not-yet:
 	echo "Not now, but soon. You can play, but be careful!"
@@ -185,16 +193,16 @@ restore-snapshot: restore-not-yet
 
 
 git-setup:
-	@if [ ! -d ${ARCHIVE_PATH} ]; then \
-		mkdir -p ${ARCHIVE_PATH} && cd ${ARCHIVE_PATH} && git clone https://github.com/${GIT_ORG_REPO} .; \
-	elif [ -d ~/epoch-archive-2/.git ]; then \
-		cd ${ARCHIVE_PATH}; \
+	@if [ ! -d ${REPO_PATH} ]; then \
+		mkdir -p ${REPO_PATH} && cd ${REPO_PATH} && git clone https://github.com/${GIT_ORG}/${GIT_REPO} .; \
+	elif [ -d ${REPO_PATH}/.git ]; then \
+		cd ${REPO_PATH}; \
 	else \
 		echo "Directory exists but is not a git repository. Please handle manually."; \
 	fi
 
 git: git-setup
-	@cd ${ARCHIVE_PATH}; \
+	@cd ${REPO_PATH}; \
 	git pull; \
 	git add -A; \
 	git commit -m "diem-db-tool backup continuously"; \
@@ -224,18 +232,18 @@ git-sling-all:
 	done
 
 start-continuous:
-	@cd ${ARCHIVE_PATH}; \
+	@cd ${REPO_PATH}; \
 	ps aux | grep "diem-db-tool backup continuously" | grep -v "grep" > /dev/null; \
 	ps_exit_status=$$?; \
 	if [ $$ps_exit_status -ne 0 ]; then \
 		echo "Starting Continuous Backup via diem-db-tool..."; \
-		cd ${ARCHIVE_PATH} && ${BIN_PATH}/diem-db-tool backup continuously --backup-service-address ${BACKUP_SERVICE_URL}:6186 --state-snapshot-interval-epochs ${BACKUP_EPOCH_FREQ} --transaction-batch-size ${BACKUP_TRANS_FREQ} --command-adapter-config ${ARCHIVE_PATH}/epoch-archive.yaml >> ${ARCHIVE_PATH}/backup.log 2>&1 & \
+		cd ${REPO_PATH} && make backup-continuous >> ${REPO_PATH}/backup.log 2>&1 & \
 	else \
 		echo "diem-db-tool is already running"; \
 	fi
 
 stop-continuous:
-	@cd ${ARCHIVE_PATH}; \
+	@cd ${REPO_PATH}; \
 	ps aux | grep "diem-db-tool backup continuously" | grep -v "grep" > /dev/null; \
 	ps_exit_status=$$?; \
 	if [ $$ps_exit_status -ne 0 ]; then \
