@@ -27,6 +27,10 @@ ifndef ARCHIVE_PATH
 ARCHIVE_PATH=${REPO_PATH}/snapshots
 endif
 
+ifndef GENESIS_PATH
+GENESIS_PATH=~/.libra/genesis
+endif
+
 ifndef DATA_PATH
 DATA_PATH=~/.libra/data
 endif
@@ -141,7 +145,7 @@ check:
 	echo restore-epoch-height: ${RESTORE_EPOCH_HEIGHT}
 
 wipe-backups:
-	cd ${REPO_PATH} && rm -Rf ${ARCHIVE_PATH} && rm -Rf metacache backup.log && git add -A && git commit -m "wipe-backups" && git push
+	cd ${REPO_PATH} && rm -Rf ${ARCHIVE_PATH} && rm -Rf ${REPO_PATH}/genesis && rm -Rf metacache backup.log && git add -A && git commit -m "wipe-backups" && git push
 
 wipe-db:
 	sudo rm -rf ${DB_PATH}
@@ -157,7 +161,10 @@ sync-repo:
 	cd ${REPO_PATH} && git pull
 
 
-backup-continuous: prep-archive-path
+backup-genesis:
+	mkdir -p ${REPO_PATH}/genesis && cp -f ${GENESIS_PATH}/genesis.blob ${REPO_PATH}/genesis/genesis.blob && cp -f ${GENESIS_PATH}/waypoint.json ${REPO_PATH}/genesis/waypoint.txt
+
+backup-continuous: prep-archive-path backup-genesis
 	${BIN_PATH}/diem-db-tool backup continuously --backup-service-address ${BACKUP_SERVICE_URL}:6186 --state-snapshot-interval-epochs ${BACKUP_EPOCH_FREQ} --transaction-batch-size ${BACKUP_TRANS_FREQ} --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
 
 backup-epoch: prep-archive-path
@@ -172,7 +179,10 @@ backup-transaction: prep-archive-path
 backup-version: backup-epoch backup-snapshot backup-transaction
 
 
-restore-all: sync-repo wipe-db
+restore-genesis:
+	mkdir -p ${GENESIS_PATH} && cp -f ${REPO_PATH}/genesis/genesis.blob ${GENESIS_PATH}/genesis.blob && cp -f ${REPO_PATH}/genesis/waypoint.txt ${GENESIS_PATH}/waypoint.json
+
+restore-all: sync-repo wipe-db restore-genesis
 	${BIN_PATH}/diem-db-tool restore bootstrap-db --target-db-dir ${DB_PATH} --metadata-cache-dir ${REPO_PATH}/metacache --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
 
 restore-latest: sync-repo wipe-db
