@@ -136,7 +136,7 @@ check:
 	echo restore-epoch-height: ${RESTORE_EPOCH_HEIGHT}
 
 wipe-backups:
-	cd ${ARCHIVE_PATH} && rm -Rf epoch_ending_* state_epoch_* transaction_* metadata metacache
+	cd ${ARCHIVE_PATH} && rm -Rf epoch_ending_* state_epoch_* transaction_* metadata metacache backup.log
 
 wipe-db:
 	sudo rm -rf ${DB_PATH}
