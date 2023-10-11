@@ -155,7 +155,7 @@ prep-archive-path:
 
 bins:
 	cd ${SOURCE_PATH} && cargo build -p diem-db-tool --release
-	cp -f ${SOURCE_PATH}/target/release/diem-db-tool ${BIN_PATH}/diem-db-tool
+	mkdir -p ${BIN_PATH} && cp -f ${SOURCE_PATH}/target/release/diem-db-tool ${BIN_PATH}/diem-db-tool
 
 sync-repo:
 	cd ${REPO_PATH} && git pull && git reset --hard origin/main && git clean -xdf
