@@ -1,6 +1,3 @@
-# https://github.com/0LNetworkCommunity/epoch-archive
-# Note: Made for v6.9 > v7.0
-
 SHELL=/usr/bin/env bash
 
 ifndef GIT_ORG
@@ -65,7 +62,6 @@ NEXT_EPOCH = $(shell expr ${EPOCH} + 1)
 endif
 
 ifndef DB_VERSION
-# sirouk 2023-09-09 - to be replaced with libra query block-height
 DB_VERSION := $(shell curl 127.0.0.1:9101/metrics 2> /dev/null | grep "^diem_storage_latest_state_checkpoint_version [0-9]\+" | awk '{print $$2}' | bc)
 endif
 
@@ -155,7 +151,7 @@ prep-archive-path:
 
 bins:
 	cd ${SOURCE_PATH} && cargo build -p diem-db-tool --release
-	mkdir -p ${BIN_PATH} && cp -f ${SOURCE_PATH}/target/release/diem-db-tool ${BIN_PATH}/diem-db-tool
+	sudo mkdir -p ${BIN_PATH} && sudo cp -f ${SOURCE_PATH}/target/release/diem-db-tool ${BIN_PATH}/diem-db-tool
 
 sync-repo:
 	cd ${REPO_PATH} && git pull && git reset --hard origin/main && git clean -xdf
@@ -165,16 +161,16 @@ backup-genesis:
 	mkdir -p ${REPO_PATH}/genesis && cp -f ${GENESIS_PATH}/genesis.blob ${REPO_PATH}/genesis/genesis.blob && cp -f ${GENESIS_PATH}/waypoint.txt ${REPO_PATH}/genesis/waypoint.txt
 
 backup-continuous: prep-archive-path backup-genesis
-	${BIN_PATH}/diem-db-tool backup continuously --backup-service-address ${BACKUP_SERVICE_URL}:6186 --state-snapshot-interval-epochs ${BACKUP_EPOCH_FREQ} --transaction-batch-size ${BACKUP_TRANS_FREQ} --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
+	cd ${ARCHIVE_PATH} && ${BIN_PATH}/diem-db-tool backup continuously --backup-service-address ${BACKUP_SERVICE_URL}:6186 --state-snapshot-interval-epochs ${BACKUP_EPOCH_FREQ} --transaction-batch-size ${BACKUP_TRANS_FREQ} --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
 
 backup-epoch: prep-archive-path
-	${BIN_PATH}/diem-db-tool backup oneoff --backup-service-address ${BACKUP_SERVICE_URL}:6186 epoch-ending --start-epoch ${LAST_EPOCH} --end-epoch ${EPOCH_NOW} --target-db-dir ${DB_PATH} --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
+	cd ${ARCHIVE_PATH} && ${BIN_PATH}/diem-db-tool backup oneoff --backup-service-address ${BACKUP_SERVICE_URL}:6186 epoch-ending --start-epoch ${LAST_EPOCH} --end-epoch ${EPOCH_NOW} --target-db-dir ${DB_PATH} --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
 
 backup-snapshot: prep-archive-path
-	${BIN_PATH}/diem-db-tool backup oneoff --backup-service-address ${BACKUP_SERVICE_URL}:6186 state-snapshot --target-db-dir ${DB_PATH} --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
+	cd ${ARCHIVE_PATH} && ${BIN_PATH}/diem-db-tool backup oneoff --backup-service-address ${BACKUP_SERVICE_URL}:6186 state-snapshot --target-db-dir ${DB_PATH} --command-adapter-config ${REPO_PATH}/epoch-archive.yaml
 
 backup-transaction: prep-archive-path
-	${BIN_PATH}/diem-db-tool backup oneoff --backup-service-address ${BACKUP_SERVICE_URL}:6186 transaction --start-version ${VERSION} --num_transactions ${BACKUP_TRANS_FREQ} --target-db-dir ${DB_PATH}--command-adapter-config ${REPO_PATH}/epoch-archive.yaml
+	cd ${ARCHIVE_PATH} && ${BIN_PATH}/diem-db-tool backup oneoff --backup-service-address ${BACKUP_SERVICE_URL}:6186 transaction --start-version ${VERSION} --num_transactions ${BACKUP_TRANS_FREQ} --target-db-dir ${DB_PATH}--command-adapter-config ${REPO_PATH}/epoch-archive.yaml
 
 backup-version: backup-epoch backup-snapshot backup-transaction
 
